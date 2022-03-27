@@ -7,6 +7,7 @@ const defaultPhotoDirectory = './storage/default/';
 
 import Logger from "../../config/logger";
 import {OkPacket, ResultSetHeader, RowDataPacket} from "mysql2";
+import {hash} from "../models/users.model";
 
 const resetDb = async (): Promise<any> => {
     const promises = [];
@@ -67,7 +68,7 @@ const populateDefaultUsers = async (): Promise<void> => {
 // @ts-ignore
 async function changePasswordToHash(user, passwordIndex) {
     // TODO you need to implement "passwords.hash()" yourself, then uncomment the line below.
-    // user[passwordIndex] = await passwords.hash(user[passwordIndex]);
+    user[passwordIndex] = await hash(user[passwordIndex]);
 
     // It is recommended you use a reputable cryptology library to do the actual hashing/comparing for you...
 }
