@@ -1,6 +1,11 @@
 import {Request, Response} from "express";
 import Logger from '../../config/logger';
 import * as users from '../models/users.model';
+import fs from "mz/fs";
+
+const imageDirectory = './storage/images/';
+const defaultPhotoDirectory = './storage/default/';
+
 
 const register = async (req: Request, res: Response):Promise<any> => {
     const first = req.body.firstName;
@@ -26,8 +31,8 @@ const register = async (req: Request, res: Response):Promise<any> => {
         if (!pass.trim()) {
             res.status( 400 ).send( "Password can not be empty!!" )
         } else {
-            const singleEmail = await users.onlyEmail(email);
-            if (!singleEmail) {
+            const emailInUse = await users.onlyEmail(email);
+            if (emailInUse) {
                 res.status( 400 ).send("Email already exists");
             } else {
                 const hashed = await users.hash(pass);
@@ -45,27 +50,31 @@ const login = async (req: Request, res: Response):Promise<any> => {
     const email = req.body.email;
     const pass = req.body.password;
     try {
-        const singleEmail = await users.onlyEmail(email);
-        if (singleEmail) {
+        const emailInUse = await users.onlyEmail(email);
+        Logger.info("here")
+        if (!(emailInUse)) {
+            return res.status(400).send(`Email does not exist.`);
+        } else {
             const result = await users.login(email, pass);
             if (result === -1) {
-                return res.status(400).send(`Password is incorrect`);
+                return res.status(400).send(`Password wrong.`);
             } else {
-                return res.status(200).send({userId: result[1], token: result[0]});
+                return res.status(200).send({userId : result[0], token : result[1]});
             }
-        } else {
-            return res.status(400).send(`Email does not exist`);
         }
     } catch (err) {
-        res.status(500).send(`ERROR logging in user by server`);
+        res.status(500).send(`ERROR login user`);
     }
 };
 
 const logout = async (req: Request, res: Response):Promise<any> => {
     try {
-        const token = req.get('X-Authorization');
-        const userId = await users.findId(token);
-        await users.logout(token);
+        const currentToken = req.get('X-Authorization');
+        if (!currentToken) {
+            return res.status(401).send(`User not authorized to log out.`);
+        }
+        const userId = await users.findId(currentToken);
+        await users.logout(currentToken);
         if (userId !== -1) {
             return res.status(200).send(`User has been logged out.`);
         } else {
@@ -77,23 +86,172 @@ const logout = async (req: Request, res: Response):Promise<any> => {
 };
 
 const getUserInfo = async (req: Request, res: Response):Promise<any> => {
-    return ;
+    try {
+        const token = req.get('X-Authorization');
+        const userInfo = await users.getUserInfo(req.params.id);
+        if (userInfo.length === 0 || !userInfo) {
+            return res.status(404).send(`User details not found`);
+        }
+        if (userInfo[0].auth_token === token) {
+            return res.status(200).send({firstName: userInfo[0].first_name, lastName: userInfo[0].last_name, email: userInfo[0].email});
+        } else {
+            return res.status(200).send({firstName: userInfo[0].first_name, lastName: userInfo[0].last_name});
+        }
+    } catch (err) {
+        res.status(500).send(`ERROR get user failed by server`);
+    }
 };
 
 const editUserInfo = async (req: Request, res: Response):Promise<any> => {
-    return ;
+    const userId = req.params.id;
+    const newFirst = req.body.firstName;
+    const newLast = req.body.lastName;
+    const newEmail = req.body.email;
+    const newPass = req.body.password;
+    const oldPass = req.body.currentPassword;
+
+    try {
+        const token = req.get("X-Authorization");
+        const userInfoExists = await users.getUserInfo(userId);
+
+        if (userInfoExists.length === 0) {
+            res.status(404).send("No user exists");
+            return;
+        }
+        if (!token) {
+            res.status(401).send("Unauthorized user");
+            return;
+        }
+        if (token !== userInfoExists[0].auth_token) {
+            res.status(403).send("Forbidden, not your token.");
+            return;
+        }
+        if (newPass !== undefined && oldPass === undefined) {
+            res.status(400).send("New password not provided");
+            return;
+        } else {
+            if (newEmail !== undefined && !(newEmail.includes("@"))) {
+                res.status(400).send("Email must contain '@'");
+                return;
+            }
+            if (newPass !== undefined) {
+                if (!newPass.trim()) {
+                    res.status(400).send("Password cannot be empty.");
+                    return;
+                }
+            }
+            const result = await users.editUserInfo(userId, newFirst, newLast, newEmail, newPass, oldPass);
+            if (result === -1) {
+                return res.status(400).send(`Incorrect password.`);
+            } else {
+                return res.status(200).send("Edit successful")
+            }
+        }
+    } catch (err) {
+        res.status(500).send(`ERROR trying to edit user`);
+    }
 };
 
 const getUserImage = async (req: Request, res: Response):Promise<any> => {
-    return ;
+    try {
+        const userInfo = await users.getUserInfo(req.params.id);
+        if (userInfo.length === 0) {
+            return res.status(404).send(`Not Found the user.`);
+            return;
+        } else if (userInfo[0].image_filename === null) {
+            res.status(404).send("User does not have a image.");
+            return;
+        } else {
+            const imageType = userInfo[0].image_filename.split('.')[1];
+            if (imageType === 'jpg' || imageType === 'jpeg') {
+                res.setHeader('content-type', 'image/jpeg');
+            } else if (imageType === 'png') {
+                res.setHeader('content-type', 'image/png');
+            } else if (imageType === 'gif') {
+                res.setHeader('content-type', 'image/gif');
+            }
+            res.status(200).send('Attained users image');
+        }
+    } catch (err) {
+        res.status(500).send("ERROR with server.");
+    }
 };
 
 const editUserImage = async (req: Request, res: Response):Promise<any> => {
-    return ;
+    const userId = req.params.id;
+    try {
+        const token = req.get("X-Authorization");
+        const userInfoExists = await users.getUserInfo(userId);
+        const ContentType= req.header('Content-Type');
+
+        if (userInfoExists.length === 0) {
+            res.status(404).send("No user exists");
+            return;
+        }
+        if (!token) {
+            res.status(401).send("Unauthorized user");
+            return;
+        }
+        if (token !== userInfoExists[0].auth_token) {
+            res.status(403).send("Forbidden, not your token.");
+            return;
+        } else {
+            const imageType = ContentType;
+            if (ContentType !== 'image/png' && ContentType !== 'image/jpeg' && ContentType !== 'image/gif') {
+                return res.status(400).send(`Wrong image type.`);
+            } else {
+                if (imageType === 'gif') {
+                    res.setHeader('content-type', 'image/gif');
+                } else if (imageType === 'jpg') {
+                    res.setHeader('content-type', 'image/jpeg');
+                } else if (imageType === 'png') {
+                    res.setHeader('content-type', 'image/png');
+                }
+            }
+            const filename = 'user_' + userId + '.' + imageType;
+            await fs.writeFile('./storage/images/' + filename, req.body, "binary");
+            await users.editUserImage(userId, filename);
+            if (userInfoExists[0].image_filename !== null) {
+                return res.status(200).send(`Set photo successfully.`);
+            } else {
+                return res.status(201).send(`Create photo successfully.`);
+            }
+        }
+    } catch (err) {
+        res.status(500).send(`ERROR put a user's profile image`);
+    }
 };
 
 const deleteUserImage = async (req: Request, res: Response):Promise<any> => {
-    return ;
+    const id = req.params.id;
+    try {
+        const token = req.get('X-Authorization');
+        const userId = await users.findId(token);
+        const userInfoExists = await users.getUserInfo(userId);
+        if (userInfoExists.length === 0) {
+            res.status(404).send("No user exists");
+            return;
+        }
+        if (!token) {
+            res.status(401).send("Unauthorized user");
+            return;
+        }
+        if (userInfoExists[0].auth_token === token) {
+            if (userInfoExists[0].image_filename !== null) {
+                await fs.unlink(imageDirectory + userInfoExists[0].image_filename);
+                await users.deleteUserImage(id);
+                return res.status(200).send(`Deleted image`);
+            } else {
+                return res.status(404).send(`Image not found`);
+            }
+        } else {
+            if (userId !== 0) {
+                return res.status(403).send(`Forbidden.`);
+            }
+        }
+    } catch (err) {
+        res.status(500).send(`ERROR deleting image by server`);
+    }
 };
 
 
