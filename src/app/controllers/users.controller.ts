@@ -51,7 +51,6 @@ const login = async (req: Request, res: Response):Promise<any> => {
     const pass = req.body.password;
     try {
         const emailInUse = await users.onlyEmail(email);
-        Logger.info("here")
         if (!(emailInUse)) {
             return res.status(400).send(`Email does not exist.`);
         } else {
@@ -154,7 +153,7 @@ const editUserInfo = async (req: Request, res: Response):Promise<any> => {
 
 const getUserImage = async (req: Request, res: Response):Promise<any> => {
     try {
-        const userInfo = await users.getUserInfo(req.params.id);
+        const userInfo = await users.getUserImage(req.params.id);
         if (userInfo.length === 0) {
             return res.status(404).send(`Not Found the user.`);
             return;
@@ -196,20 +195,23 @@ const editUserImage = async (req: Request, res: Response):Promise<any> => {
             res.status(403).send("Forbidden, not your token.");
             return;
         } else {
-            const imageType = ContentType;
+            const imageExtension = ContentType.slice(ContentType.indexOf('/') + 1);
+
             if (ContentType !== 'image/png' && ContentType !== 'image/jpeg' && ContentType !== 'image/gif') {
                 return res.status(400).send(`Wrong image type.`);
             } else {
-                if (imageType === 'gif') {
+                if (imageExtension === 'gif') {
                     res.setHeader('content-type', 'image/gif');
-                } else if (imageType === 'jpg') {
+                } else if (imageExtension === 'jpg') {
                     res.setHeader('content-type', 'image/jpeg');
-                } else if (imageType === 'png') {
+                } else if (imageExtension === 'png') {
                     res.setHeader('content-type', 'image/png');
                 }
             }
-            const filename = 'user_' + userId + '.' + imageType;
-            await fs.writeFile('./storage/images/' + filename, req.body, "binary");
+
+            const fileSystemPath = imageDirectory + "/users_" + userId + imageExtension;
+            await fs.writeFile(fileSystemPath, req.body);
+            const filename = 'user_' + userId + '.' + imageExtension;
             await users.editUserImage(userId, filename);
             if (userInfoExists[0].image_filename !== null) {
                 return res.status(200).send(`Set photo successfully.`);
@@ -218,7 +220,7 @@ const editUserImage = async (req: Request, res: Response):Promise<any> => {
             }
         }
     } catch (err) {
-        res.status(500).send(`ERROR put a user's profile image`);
+        res.status(500).send(`ERROR with image from server`);
     }
 };
 
@@ -226,19 +228,20 @@ const deleteUserImage = async (req: Request, res: Response):Promise<any> => {
     const id = req.params.id;
     try {
         const token = req.get('X-Authorization');
+        if (!token) {
+            res.status(401).send("Unauthorized user");
+            return;
+        }
         const userId = await users.findId(token);
         const userInfoExists = await users.getUserInfo(userId);
         if (userInfoExists.length === 0) {
             res.status(404).send("No user exists");
             return;
         }
-        if (!token) {
-            res.status(401).send("Unauthorized user");
-            return;
-        }
+
         if (userInfoExists[0].auth_token === token) {
             if (userInfoExists[0].image_filename !== null) {
-                await fs.unlink(imageDirectory + userInfoExists[0].image_filename);
+                // await fs.unlink(imageDirectory + userInfoExists[0].id.image_filename);
                 await users.deleteUserImage(id);
                 return res.status(200).send(`Deleted image`);
             } else {

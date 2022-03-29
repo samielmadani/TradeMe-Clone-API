@@ -126,7 +126,7 @@ const editUserInfo = async (userId: string, newFirst: string, newLast: string, n
 
 const getUserImage = async (userID: string):Promise<any> => {
     const connection = await getPool().getConnection();
-    const [rows] = await connection.query(`SELECT image_filename FROM user WHERE user.id = ${userID}`);
+    const [rows] = await connection.query(`SELECT image_filename FROM user WHERE id = ${userID}`);
     connection.release();
     return rows;
 };
