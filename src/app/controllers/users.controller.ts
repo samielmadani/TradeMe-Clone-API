@@ -1,10 +1,9 @@
 import {Request, Response} from "express";
-import Logger from '../../config/logger';
 import * as users from '../models/users.model';
 import fs from "mz/fs";
 
 const imageDirectory = './storage/images/';
-const defaultPhotoDirectory = './storage/default/';
+// const defaultPhotoDirectory = './storage/default/';
 
 
 const register = async (req: Request, res: Response):Promise<any> => {
@@ -156,7 +155,6 @@ const getUserImage = async (req: Request, res: Response):Promise<any> => {
         const userInfo = await users.getUserImage(req.params.id);
         if (userInfo.length === 0) {
             return res.status(404).send(`Not Found the user.`);
-            return;
         } else if (userInfo[0].image_filename === null) {
             res.status(404).send("User does not have a image.");
             return;

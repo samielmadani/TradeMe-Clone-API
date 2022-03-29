@@ -1,21 +1,14 @@
 import {getPool} from "../../config/db";
-
 import bcrypt from "bcrypt";
 import randtoken from "rand-token";
-import Logger from "../../config/logger";
-
-const imageDirectory = './storage/images/';
-const defaultPhotoDirectory = './storage/default/';
 
 const hash = async (password: string) => {
     const salt = bcrypt.genSaltSync(10)
-    const hashed = await bcrypt.hash(password, salt)
-    return hashed;
+    return await bcrypt.hash(password, salt);
 }
 
 const compare = async (password: string, hashed: string) => {
-    const match = bcrypt.compareSync(password, hashed);
-    return match;
+    return bcrypt.compareSync(password, hashed);
 };
 
 const onlyEmail = async (email: string): Promise<any> => {
@@ -34,8 +27,7 @@ const register = async (firstName: string, lastName: string, email: string, pass
 };
 
 const newToken = async () => {
-    const token = randtoken.generate(32);
-    return token;
+    return randtoken.generate(32);
 };
 
 const login = async (email: string, password: string): Promise<any> => {
