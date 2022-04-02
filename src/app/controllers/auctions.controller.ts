@@ -97,7 +97,8 @@ const getAuctionImage = async (req: Request, res: Response):Promise<any> => {
             } else if (imageType === 'gif') {
                 res.setHeader('content-type', 'image/gif');
             }
-            res.status(200).send('Attained auctions image');
+            const path = await fs.readFile(imageDirectory + auctionInfo[0].image_filename);
+            res.status(200).send(path);
         }
     } catch (err) {
         res.status(500).send("ERROR with server.");
@@ -129,16 +130,16 @@ const editAuctionImage = async (req: Request, res: Response):Promise<any> => {
             if (ContentType !== 'image/png' && ContentType !== 'image/jpeg' && ContentType !== 'image/gif') {
                 return res.status(400).send(`Wrong image type.`);
             } else {
-                if (imageExtension === 'gif') {
-                    res.setHeader('content-type', 'image/gif');
-                } else if (imageExtension === 'jpg') {
+                if (imageExtension === 'jpg' || imageExtension === 'jpeg') {
                     res.setHeader('content-type', 'image/jpeg');
                 } else if (imageExtension === 'png') {
                     res.setHeader('content-type', 'image/png');
+                } else if (imageExtension === 'gif') {
+                    res.setHeader('content-type', 'image/gif');
                 }
             }
 
-            const fileSystemPath = imageDirectory + "/auctions_" + auctionId + imageExtension;
+            const fileSystemPath = imageDirectory + "/auctions_" + auctionId + '.' + imageExtension;
             await fs.writeFile(fileSystemPath, req.body);
             const filename = 'auction_' + auctionId + '.' + imageExtension;
             await auctions.editAuctionImage(auctionId, filename);

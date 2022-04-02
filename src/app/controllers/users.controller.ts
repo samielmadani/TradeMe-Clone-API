@@ -1,6 +1,7 @@
 import {Request, Response} from "express";
 import * as users from '../models/users.model';
 import fs from "mz/fs";
+import Logger from "../../config/logger";
 
 const imageDirectory = './storage/images/';
 // const defaultPhotoDirectory = './storage/default/';
@@ -167,10 +168,11 @@ const getUserImage = async (req: Request, res: Response):Promise<any> => {
             } else if (imageType === 'gif') {
                 res.setHeader('content-type', 'image/gif');
             }
-            res.status(200).send('Attained users image');
+            const path = await fs.readFile(imageDirectory + userInfo[0].image_filename);
+            res.status(200).send(path);
         }
     } catch (err) {
-        res.status(500).send("ERROR with server.");
+        res.status(500).send('ERROR with image from server');
     }
 };
 
@@ -198,18 +200,18 @@ const editUserImage = async (req: Request, res: Response):Promise<any> => {
             if (ContentType !== 'image/png' && ContentType !== 'image/jpeg' && ContentType !== 'image/gif') {
                 return res.status(400).send(`Wrong image type.`);
             } else {
-                if (imageExtension === 'gif') {
-                    res.setHeader('content-type', 'image/gif');
-                } else if (imageExtension === 'jpg') {
+                if (imageExtension === 'jpg' || imageExtension === 'jpeg') {
                     res.setHeader('content-type', 'image/jpeg');
                 } else if (imageExtension === 'png') {
                     res.setHeader('content-type', 'image/png');
+                } else if (imageExtension === 'gif') {
+                    res.setHeader('content-type', 'image/gif');
                 }
             }
 
-            const fileSystemPath = imageDirectory + "/users_" + userId + imageExtension;
-            await fs.writeFile(fileSystemPath, req.body);
+            const fileSystemPath = imageDirectory + "/user_" + userId + '.' + imageExtension;
             const filename = 'user_' + userId + '.' + imageExtension;
+            await fs.writeFile(fileSystemPath, req.body);
             await users.editUserImage(userId, filename);
             if (userInfoExists[0].image_filename !== null) {
                 return res.status(200).send(`Set photo successfully.`);
