@@ -143,7 +143,7 @@ const editUserInfo = async (req: Request, res: Response):Promise<any> => {
             if (result === -1) {
                 return res.status(400).send(`Incorrect password.`);
             } else {
-                return res.status(200).send("Edit successful")
+                return res.status(200).send("Edit successful.")
             }
         }
     } catch (err) {

@@ -84,7 +84,7 @@ const getAuctionImage = async (req: Request, res: Response):Promise<any> => {
     try {
         const auctionInfo = await auctions.getAuctionImage(req.params.id);
         if (auctionInfo.length === 0) {
-            return res.status(404).send(`Auction not found`);
+            return res.status(404).send(`Auction not found.`);
         } else if (auctionInfo[0].image_filename === null) {
             res.status(404).send("Auction does not have a image.");
             return;
