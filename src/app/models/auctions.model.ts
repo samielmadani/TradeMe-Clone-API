@@ -20,8 +20,10 @@ const viewAuction = async (): Promise<any> => {
     return ;
 };
 
-const addAuction = async ():Promise<any> => {
-    return ;
+const addAuction = async (newTitle: string, newDesc: string, newEnd: string, newRes: string, sellerId: string, newCat: string):Promise<any> => {
+    const connection = await getPool().getConnection();
+    await connection.query( "INSERT INTO auction (title, description, end_date, reserve, seller_id, category_id) VALUES (?, ?, ?, ?, ?, ?)", [newTitle, newDesc, newEnd, newRes, sellerId, newCat] );
+    connection.release();
 };
 
 const getAuctionInfo = async (auctionID: string):Promise<any> => {
@@ -88,7 +90,7 @@ const oneCategory = async (auctionID: string):Promise<any> => {
 
 const getAuctionImage = async (auctionID: string):Promise<any> => {
     const connection = await getPool().getConnection();
-    const [rows] = await connection.query(`SELECT image_filename FROM auction WHERE id = ${auctionID}`);
+    const [rows] = await connection.query(`SELECT image_filename FROM auction WHERE id = '${auctionID}'`);
     connection.release();
     return rows;
 };

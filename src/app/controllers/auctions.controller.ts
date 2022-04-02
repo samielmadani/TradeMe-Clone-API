@@ -13,7 +13,52 @@ const viewAuction = async (req: Request, res: Response):Promise<any> => {
 };
 
 const addAuction = async (req: Request, res: Response):Promise<any> => {
-    return;
+    const newTitle = req.body.title;
+    const newDesc = req.body.description;
+    const newEnd = req.body.end_date;
+    let newRes;
+    newRes = req.body.reserve;
+    const newCat = req.body.category_id;
+
+    try {
+        const currentToken = req.get('X-Authorization');
+        if (currentToken === undefined) {
+            res.status(401).send("Unauthorized");
+            return;
+        }
+        const sellerId = await users.findId(currentToken);
+        if (newTitle === null) {
+            res.status(404).send("Title not provided");
+            return;
+        }
+        if (newDesc === null) {
+            res.status(404).send("Description not provided");
+            return;
+        }
+        if (newEnd === null) {
+            res.status(404).send("End Date not provided");
+            return;
+        }
+        if (newRes === null) {
+            newRes = 1;
+        }
+
+        if (newCat === null) {
+            res.status(404).send("New category not provided");
+            return;
+        } else {
+            const catExists = await auctions.oneCategory(newCat);
+            if (catExists === null) {
+                res.status(404).send("New category invalid");
+                return;
+            }
+        }
+        await auctions.addAuction(newTitle, newDesc, newEnd, newRes, sellerId, newCat);
+        return res.status(200).send("Edit successful.");
+    } catch (err) {
+        res.status(500).send(`ERROR trying to edit auction from server`);
+
+    }
 };
 
 const getAuctionInfo = async (req: Request, res: Response):Promise<any> => {
@@ -85,9 +130,10 @@ const editAuctionInfo = async (req: Request, res: Response):Promise<any> => {
             const catExists = await auctions.oneCategory(newCat);
             if (catExists === null) {
                 res.status(404).send("New category invalid");
+                return;
             }
         }
-        const result = await auctions.editAuctionInfo(auctionId, newTitle, newDesc, newEnd, newRes, newCat);
+        await auctions.editAuctionInfo(auctionId, newTitle, newDesc, newEnd, newRes, newCat);
         return res.status(200).send("Edit successful.");
     } catch (err) {
     res.status(500).send(`ERROR trying to edit auction from server`);
@@ -141,6 +187,7 @@ const categories = async (req: Request, res: Response):Promise<any> => {
         return res.status(200).send(categoryInfo);
     } catch (err) {
         res.status(500).send(`ERROR getting categories from server`);
+        return;
     }
 };
 
@@ -165,7 +212,7 @@ const getAuctionImage = async (req: Request, res: Response):Promise<any> => {
             res.status(200).send(path);
         }
     } catch (err) {
-        res.status(500).send("ERROR with server." + (err));
+        res.status(500).send("ERROR with server." + `${err}`);
     }
 };
 
@@ -185,8 +232,13 @@ const editAuctionImage = async (req: Request, res: Response):Promise<any> => {
             res.status(401).send("Unauthorized user");
             return;
         }
-        if (currentToken !== userInfoExists[0].auth_token) {
-            res.status(403).send("Forbidden, not your token.");
+        const auctionInfo = await auctions.getAuctionInfo(auctionId);
+        if (auctionInfo.length === 0) {
+            res.status(404).send("Auction does not exist");
+            return;
+        }
+        if (currentUserId !== auctionInfo[0].seller_id) {
+            res.status(403).send("Forbidden, not your auction.");
             return;
         } else {
             const imageExtension = ContentType.slice(ContentType.indexOf('/') + 1);
@@ -223,7 +275,19 @@ const getAuctionBids = async (req: Request, res: Response):Promise<any> => {
 };
 
 const placeBid = async (req: Request, res: Response):Promise<any> => {
-    return ;
+    try {
+        const currentToken = req.get('X-Authorization');
+        if (currentToken === undefined) {
+            res.status(401).send("Unauthorized");
+            return;
+        }
+        const auctionId = req.params.id;
+        const currentUserId = await users.findId(currentToken);
+        const userInfoExists = await users.getUserInfo(currentUserId);
+        // * Not finished */
+    } catch (err) {
+        res.status(500).send(`ERROR with image from server` + `${err}`);
+    }
 };
 
 export {viewAuction, addAuction, getAuctionInfo, editAuctionInfo, deleteAuction, categories, getAuctionImage, editAuctionImage, getAuctionBids, placeBid}
