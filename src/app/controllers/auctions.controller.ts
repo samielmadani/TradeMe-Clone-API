@@ -22,14 +22,78 @@ const getAuctionInfo = async (req: Request, res: Response):Promise<any> => {
         if (auctionInfo.length === 0 || !auctionInfo) {
             return res.status(404).send(`Auction details not found`);
         }
-        return res.status(200).send('Auction info: ' + auctionInfo[0]);
+
+        const userInfo = await users.getUserInfo(auctionInfo[0].seller_id);
+        const auctionBids = await auctions.getAuctionBids(req.params.id);
+        const topBidder = await auctions.topBid(req.params.id);
+        return res.status(200).send(
+            {"auctionId": req.params.id,
+            "title": auctionInfo[0].title,
+            "categoryId": auctionInfo[0].category_id,
+            "sellerId": auctionInfo[0].seller_id,
+            "sellerFirstName": userInfo[0].first_name,
+            "sellerLastName": userInfo[0].last_name,
+            "reserve": auctionInfo[0].reserve,
+            "numBids": auctionBids[0].length,
+            "highestBid": topBidder,
+            "endDate": auctionInfo[0].end_date,
+            "description": auctionInfo[0].description});
     } catch (err) {
         res.status(500).send(`ERROR get user failed by server`);
     }
 };
 
 const editAuctionInfo = async (req: Request, res: Response):Promise<any> => {
-    return ;
+    const auctionId = req.params.id;
+    const newTitle = req.body.title;
+    const newDesc = req.body.description;
+    const newEnd = req.body.end_date;
+    const newRes = req.body.reserve;
+    const newCat = req.body.category_id;
+
+    try {
+        const currentToken = req.get('X-Authorization');
+        if (currentToken === undefined) {
+            res.status(401).send("Unauthorized");
+            return;
+        }
+        const userId = await users.findId(currentToken);
+        const ownerId = await auctions.auctionOwner(auctionId);
+        if (ownerId.length === 0) {
+            res.status(404).send("Auction not found");
+            return;
+        }
+        if (userId.length === 0) {
+            res.status(404).send("User does not exist");
+            return;
+        }
+        if (userId[0].id !== ownerId) {
+            res.status(403).send("Forbidden");
+            return;
+        }
+        const auctionInfo = await auctions.getAuctionInfo(auctionId);
+        if (auctionInfo.length === 0) {
+            res.status(404).send("Auction does not exist");
+            return;
+        }
+        const numberOfBids = await auctions.getAuctionBids(auctionId)
+        if (numberOfBids.length !== 0) {
+            res.status(403).send("Cannot delete auction with bids");
+            return;
+        }
+        if (newCat !== null) {
+            const catExists = await auctions.oneCategory(newCat);
+            if (catExists === null) {
+                res.status(404).send("New category invalid");
+            }
+        }
+        const result = await auctions.editAuctionInfo(auctionId, newTitle, newDesc, newEnd, newRes, newCat);
+        return res.status(200).send("Edit successful.");
+    } catch (err) {
+    res.status(500).send(`ERROR trying to edit auction from server`);
+
+    }
+
 };
 
 const deleteAuction = async (req: Request, res: Response):Promise<any> => {
@@ -101,7 +165,7 @@ const getAuctionImage = async (req: Request, res: Response):Promise<any> => {
             res.status(200).send(path);
         }
     } catch (err) {
-        res.status(500).send("ERROR with server.");
+        res.status(500).send("ERROR with server." + (err));
     }
 };
 
@@ -150,7 +214,7 @@ const editAuctionImage = async (req: Request, res: Response):Promise<any> => {
             }
         }
     } catch (err) {
-        res.status(500).send(`ERROR with image from server`);
+        res.status(500).send(`ERROR with image from server` + `${err}`);
     }
 };
 

@@ -81,11 +81,11 @@ const editUserInfo = async (userId: string, newFirst: string, newLast: string, n
     const connection = await getPool().getConnection();
     const userToUpdate = await getUserInfo(userId);
     if (newFirst) {
-        userToUpdate[0].first_name = newLast;
+        userToUpdate[0].first_name = newFirst;
     }
 
     if (newLast) {
-        userToUpdate[0].las_name = newLast;
+        userToUpdate[0].last_name = newLast;
     }
 
     if (newEmail) {

@@ -1,6 +1,7 @@
 import {Express} from "express";
 import {rootUrl} from "./base.routes"
 import * as auctions from '../controllers/auctions.controller';
+import bodyParser from "body-parser";
 
 module.exports = (app: Express) => {
     app.route(rootUrl + '/auctions')
@@ -17,7 +18,7 @@ module.exports = (app: Express) => {
 
     app.route(rootUrl + '/auctions/:id/image')
         .get(auctions.getAuctionImage)
-        .put(auctions.editAuctionImage);
+        .put(bodyParser.raw({type: ['image/png', 'image/jpeg', 'image/jpg', 'image/gif'], limit: '10mb'}), auctions.editAuctionImage);
 
     app.route(rootUrl + '/auctions/:id/bids')
         .get(auctions.getAuctionBids)
