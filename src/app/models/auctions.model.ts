@@ -117,5 +117,4 @@ const placeBid = async ():Promise<any> => {
     return ;
 };
 
-
 export {auctionOwner, viewAuction, addAuction, oneCategory, topBid, getAuctionInfo, editAuctionInfo, deleteAuction, categories, getAuctionImage, editAuctionImage, getAuctionBids, placeBid}

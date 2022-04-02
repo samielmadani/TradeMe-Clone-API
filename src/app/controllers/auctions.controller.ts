@@ -284,7 +284,7 @@ const placeBid = async (req: Request, res: Response):Promise<any> => {
         const auctionId = req.params.id;
         const currentUserId = await users.findId(currentToken);
         const userInfoExists = await users.getUserInfo(currentUserId);
-        // * Not finished */
+        // * Not finished. */
     } catch (err) {
         res.status(500).send(`ERROR with image from server` + `${err}`);
     }
