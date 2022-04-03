@@ -3,6 +3,7 @@ import Logger from '../../config/logger';
 import * as auctions from '../models/auctions.model';
 import * as users from '../models/users.model';
 import fs from "mz/fs";
+import {type} from "os";
 
 const imageDirectory = './storage/images/';
 const defaultPhotoDirectory = './storage/default/';
@@ -15,10 +16,10 @@ const viewAuction = async (req: Request, res: Response):Promise<any> => {
 const addAuction = async (req: Request, res: Response):Promise<any> => {
     const newTitle = req.body.title;
     const newDesc = req.body.description;
-    const newEnd = req.body.end_date;
+    const newEnd = req.body.endDate;
     let newRes;
     newRes = req.body.reserve;
-    const newCat = req.body.category_id;
+    const newCat = req.body.categoryId;
 
     try {
         const currentToken = req.get('X-Authorization');
@@ -35,14 +36,19 @@ const addAuction = async (req: Request, res: Response):Promise<any> => {
             res.status(404).send("Description not provided");
             return;
         }
-        if (newEnd === null) {
+        if (newEnd === null || newEnd === 0) {
             res.status(404).send("End Date not provided");
+            return;
+        }
+        const end = new Date(newEnd);
+        const cur = new Date();
+        if (end < cur) {
+            res.status(404).send("End date must be in");
             return;
         }
         if (newRes === null) {
             newRes = 1;
         }
-
         if (newCat === null) {
             res.status(404).send("New category not provided");
             return;
@@ -53,38 +59,48 @@ const addAuction = async (req: Request, res: Response):Promise<any> => {
                 return;
             }
         }
-        await auctions.addAuction(newTitle, newDesc, newEnd, newRes, sellerId, newCat);
-        return res.status(200).send("Edit successful.");
+        const addedAuc = await auctions.addAuction(newTitle, newDesc, newEnd, newRes, sellerId, newCat);
+        return res.status(201).send({"auctionID": addedAuc[0].insertId});
     } catch (err) {
-        res.status(500).send(`ERROR trying to edit auction from server`);
-
+        res.status(500).send(`ERROR trying to edit auction from server ` + err );
     }
 };
 
 const getAuctionInfo = async (req: Request, res: Response):Promise<any> => {
     try {
         const auctionInfo = await auctions.getAuctionInfo(req.params.id);
-        if (auctionInfo.length === 0 || !auctionInfo) {
+        if (auctionInfo.length === 0 || auctionInfo === null) {
             return res.status(404).send(`Auction details not found`);
         }
-
-        const userInfo = await users.getUserInfo(auctionInfo[0].seller_id);
-        const auctionBids = await auctions.getAuctionBids(req.params.id);
-        const topBidder = await auctions.topBid(req.params.id);
+        const bidInfo = await auctions.getAuctionBids(req.params.id);
+        let topBid;
+        let numBids;
+        if (bidInfo.length === 0) {
+            topBid = null;
+            numBids = 0;
+        } else {
+            topBid = bidInfo[0].amount;
+            numBids = bidInfo.length;
+        }
+        const sellerInfo = await users.getUserInfo(auctionInfo[0].seller_id);
+        if (auctionInfo.length === 0) {
+            res.status(404).send("User not found")
+            return;
+        }
         return res.status(200).send(
-            {"auctionId": req.params.id,
+            {"auctionId": parseInt(req.params.id, 10),
             "title": auctionInfo[0].title,
             "categoryId": auctionInfo[0].category_id,
             "sellerId": auctionInfo[0].seller_id,
-            "sellerFirstName": userInfo[0].first_name,
-            "sellerLastName": userInfo[0].last_name,
+            "sellerFirstName": sellerInfo[0].first_name,
+            "sellerLastName": sellerInfo[0].last_name,
             "reserve": auctionInfo[0].reserve,
-            "numBids": auctionBids[0].length,
-            "highestBid": topBidder,
+            "numBids": numBids,
+            "highestBid": topBid,
             "endDate": auctionInfo[0].end_date,
             "description": auctionInfo[0].description});
     } catch (err) {
-        res.status(500).send(`ERROR get user failed by server`);
+        res.status(500).send(`ERROR get user failed by server ` + err);
     }
 };
 
@@ -92,9 +108,9 @@ const editAuctionInfo = async (req: Request, res: Response):Promise<any> => {
     const auctionId = req.params.id;
     const newTitle = req.body.title;
     const newDesc = req.body.description;
-    const newEnd = req.body.end_date;
+    const newEnd = req.body.endDate;
     const newRes = req.body.reserve;
-    const newCat = req.body.category_id;
+    const newCat = req.body.categoryId;
 
     try {
         const currentToken = req.get('X-Authorization');
@@ -108,11 +124,11 @@ const editAuctionInfo = async (req: Request, res: Response):Promise<any> => {
             res.status(404).send("Auction not found");
             return;
         }
-        if (userId.length === 0) {
+        if (userId === null) {
             res.status(404).send("User does not exist");
             return;
         }
-        if (userId[0].id !== ownerId) {
+        if (userId !== ownerId) {
             res.status(403).send("Forbidden");
             return;
         }
@@ -151,26 +167,26 @@ const deleteAuction = async (req: Request, res: Response):Promise<any> => {
     }
     const userId = await users.findId(currentToken);
     const ownerId = await auctions.auctionOwner(auctionId);
-    if (ownerId.length === 0) {
+    if (ownerId === null) {
         res.status(404).send("Auction not found");
         return;
     }
-    if (userId.length === 0) {
+    if (userId === null) {
         res.status(404).send("User does not exist");
         return;
     }
-    if (userId[0].id !== ownerId) {
+    if (userId !== ownerId) {
         res.status(403).send("Forbidden");
-        return;
-    }
-    const auctionInfo = await auctions.getAuctionInfo(auctionId);
-    if (auctionInfo.length === 0) {
-        res.status(404).send("Auction does not exist");
         return;
     }
     const numberOfBids = await auctions.getAuctionBids(auctionId)
     if (numberOfBids.length !== 0) {
         res.status(403).send("Cannot delete auction with bids");
+        return;
+    }
+    const auctionInfo = await auctions.getAuctionInfo(auctionId);
+    if (auctionInfo.length === 0) {
+        res.status(404).send("Auction does not exist");
         return;
     }
     try {
@@ -184,9 +200,14 @@ const deleteAuction = async (req: Request, res: Response):Promise<any> => {
 const categories = async (req: Request, res: Response):Promise<any> => {
     try {
         const categoryInfo = await auctions.categories();
-        return res.status(200).send(categoryInfo);
+        Logger.info(categoryInfo);
+        if(categoryInfo.length === 0) {
+            res.status(200).send([]);
+        } else {
+            return res.status(200).send(categoryInfo);
+        }
     } catch (err) {
-        res.status(500).send(`ERROR getting categories from server`);
+        res.status(500).send(`ERROR getting categories from server ` + err);
         return;
     }
 };
@@ -271,7 +292,25 @@ const editAuctionImage = async (req: Request, res: Response):Promise<any> => {
 };
 
 const getAuctionBids = async (req: Request, res: Response):Promise<any> => {
-    return ;
+    try {
+        const auctionId = req.params.id;
+        const auctionInfo = await auctions.getAuctionInfo(auctionId);
+        if (auctionInfo.length === 0) {
+            res.status(404).send("Auction does not exist");
+            return;
+        }
+
+        const bids = await auctions.getAuctionBids(auctionId);
+        if (bids.length === 0) {
+            return res.status(200).send([]);
+        } else {
+            return res.status(200).send(bids);
+        }
+
+
+    } catch (err) {
+        res.status(500).send(`ERROR with image from server` + `${err}`);
+    }
 };
 
 const placeBid = async (req: Request, res: Response):Promise<any> => {

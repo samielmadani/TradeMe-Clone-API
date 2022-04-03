@@ -20,15 +20,16 @@ const viewAuction = async (): Promise<any> => {
     return ;
 };
 
-const addAuction = async (newTitle: string, newDesc: string, newEnd: string, newRes: string, sellerId: string, newCat: string):Promise<any> => {
+const addAuction = async (newTitle: string, newDesc: string, newEnd: string, newRes: number, sellerId: number, newCat: number):Promise<any> => {
     const connection = await getPool().getConnection();
-    await connection.query( "INSERT INTO auction (title, description, end_date, reserve, seller_id, category_id) VALUES (?, ?, ?, ?, ?, ?)", [newTitle, newDesc, newEnd, newRes, sellerId, newCat] );
+    const result = await connection.query( `INSERT INTO auction (title, description, end_date, reserve, seller_id, category_id) VALUES (?, ?, ?, ?, ?, ?)`, [newTitle, newDesc, newEnd, newRes, sellerId, newCat] );
     connection.release();
+    return result;
 };
 
 const getAuctionInfo = async (auctionID: string):Promise<any> => {
     const connection = await getPool().getConnection();
-    const [result] = await connection.query(`SELECT * FROM auction_bid WHERE id = ${auctionID}`);
+    const [result] = await connection.query("SELECT * FROM auction WHERE id = ?", [auctionID]);
     connection.release();
     return result;
 };
@@ -52,13 +53,9 @@ const editAuctionInfo = async (auctionId: string, newTitle: string, newDesc: str
         auctionToUpdate[0].reserve = newRes;
     }
 
-    if (newCat) {
-        auctionToUpdate[0].category_id = newCat;
-    }
-
     auctionToUpdate[0].category_id = newCat;
 
-    await connection.query('UPDATE auction SET title = ?, description = ?, end_date = ?, reserve = ?, category_id = ? WHERE id = ?',
+    await connection.query(`UPDATE auction SET title = ?, description = ?, end_date = ?, reserve = ?, category_id = ? WHERE id = ?`,
         [auctionToUpdate[0].title,
          auctionToUpdate[0].description,
          auctionToUpdate[0].end_date,
@@ -76,14 +73,14 @@ const deleteAuction = async (auctionID: string):Promise<any> => {
 
 const categories = async ():Promise<any> => {
     const connection = await getPool().getConnection();
-    const [result] = await connection.query('SELECT category.id, category.name FROM category');
+    const [result] = await connection.query(`SELECT id as categoryId, name FROM category`);
     connection.release();
     return result;
 };
 
 const oneCategory = async (auctionID: string):Promise<any> => {
     const connection = await getPool().getConnection();
-    const [result] = await connection.query('SELECT * FROM category WHERE id = ${auctionID}');
+    const [result] = await connection.query(`SELECT * FROM category WHERE id = '${auctionID}'`);
     connection.release();
     return result;
 };
@@ -97,18 +94,21 @@ const getAuctionImage = async (auctionID: string):Promise<any> => {
 
 const editAuctionImage = async (auctionID: string, filename: string):Promise<any> => {
     const connection = await getPool().getConnection();
-    const [result] = await connection.query('UPDATE auction SET image_filename = ? WHERE id = ?', [filename, auctionID]);
+    const [result] = await connection.query(`UPDATE auction SET image_filename = ? WHERE id = ?`, [filename, auctionID]);
     connection.release();
     return result;
 };
 
 const getAuctionBids = async (auctionID: string):Promise<any> => {
-    return ;
+    const connection = await getPool().getConnection();
+    const [results] = await connection.query("SELECT auction_bid.user_id AS bidderId, auction_bid.amount AS amount, user.first_name AS firstName, user.last_name AS lastName, auction_bid.timestamp AS timestamp FROM auction_bid JOIN user ON auction_bid.user_id = user.id WHERE auction_bid.auction_id = ? ORDER BY auction_bid.amount DESC", [auctionID]);
+    connection.release();
+    return results;
 };
 
 const topBid = async (auctionID: string):Promise<any> => {
     const connection = await getPool().getConnection();
-    const topBidder = await connection.query('SELECT max(amount) FROM auction_bid GROUP by AMOUNT');
+    const topBidder = await connection.query(`SELECT max(amount) FROM auction_bid GROUP by AMOUNT`);
     connection.release();
     return topBidder;
 };
