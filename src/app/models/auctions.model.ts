@@ -17,47 +17,48 @@ const auctionOwner = async (auctionID: string): Promise<any> => {
 }
 
 const viewAuctions = async (q: string, categoryID: string, sellerID: string, bidderID: string, sortBy: string) : Promise<any> => {
-        let SQL = 'SELECT auction.id as auctionId, auction.title as title, auction.category_id as categoryId, auction.seller_id as sellerId, user.first_name as sellerFirstName, user.last_name as sellerLastName, auction.reserve as reserve,  ' +
-            'COUNT(auction_bid.auction_id) AS numBids, ' +
-            'MAX(auction_bid.amount) AS highestBid, ' +
-            'auction.end_date as endDate, auction.description as description ' +
-            'FROM auction ' +
-            'LEFT JOIN auction_bid ON auction_bid.auction_id = auction.id ' +
-            'JOIN user ON user.id = auction.seller_id WHERE 1 ';
+    let script = 'SELECT auction.id as auctionId, auction.title as title, auction.category_id as categoryId, auction.seller_id as sellerId, user.first_name as sellerFirstName, user.last_name as sellerLastName, auction.reserve as reserve,  ' +
+        'COUNT(auction_bid.auction_id) AS numBids, ' +
+        'MAX(auction_bid.amount) AS highestBid, ' +
+        'auction.end_date as endDate, auction.description as description ' +
+        'FROM auction ' +
+        'LEFT JOIN auction_bid ON auction_bid.auction_id = auction.id ' +
+        'JOIN user ON user.id = auction.seller_id WHERE 1 ';
 
-        if (q !== "") {
-            SQL += 'AND title LIKE "%' + q + '%" OR description LIKE "%' + q + '%" ';
-        }
-        if (categoryID !== "-1") {
-            SQL += 'AND category_id=' + categoryID + ' ';
-        }
-        if (sellerID !== "-1") {
-            SQL += 'AND seller_id=' + sellerID + ' ';
-        }
-        if (bidderID !== "-1") {
-            SQL += 'AND auction_bid.user_id=' + bidderID + ' ';
-        }
-        SQL += 'GROUP BY auction.id ';
-        const sorting = sortBy.split("_");
-        if (sorting[0] === "ALPHABETICAL") {
-            SQL += 'ORDER BY title ';
-        } else if (sorting[0] === "BIDS") {
-            SQL += 'ORDER BY amount '
-        } else if (sorting[0] === "CLOSING") {
-            SQL += 'ORDER BY auction.end_date '
-        } else if (sorting[0] === "RESERVE") {
-            SQL += 'ORDER BY reserve '
-        }
-        if (sorting[1] === "ASC") {
-            SQL += 'ASC, auction.id ';
-        } else if (sorting[0] === "SOON") {
-            SQL += 'ASC, auction.id ';
-        } else if (sorting[0] === "DESC") {
-            SQL += 'DESC, auction.id ';
-        } else if (sorting[0] === "LAST") {
-            SQL += 'DESC, auction.id ';
-        }
-        return await getPool().query(SQL);
+    if (q !== "") {
+        script += 'AND title LIKE "%' + q + '%" OR description LIKE "%' + q + '%" ';
+    }
+    if (categoryID !== "-1") {
+        script += 'AND category_id=' + categoryID + ' ';
+    }
+    if (sellerID !== "-1") {
+        script += 'AND seller_id=' + sellerID + ' ';
+    }
+    if (bidderID !== "-1") {
+        script += 'AND auction_bid.user_id=' + bidderID + ' ';
+    }
+    script += 'GROUP BY auction.id ';
+    const sorting = sortBy.split("_");
+    if (sorting[0] === "ALPHABETICAL") {
+        script += 'ORDER BY title '
+    } else if (sorting[0] === "BIDS") {
+        script += 'ORDER BY amount '
+    } else if (sorting[0] === "CLOSING") {
+        script += 'ORDER BY auction.end_date '
+    } else if (sorting[0] === "RESERVE") {
+        script += 'ORDER BY reserve '
+    }
+    if (sorting[1] === "ASC") {
+        script += 'ASC, auction.id '
+    } else if (sorting[0] === "SOON") {
+        script += 'ASC, auction.id '
+    } else if (sorting[0] === "DESC") {
+        script += 'DESC, auction.id '
+    } else if (sorting[0] === "LAST") {
+        script += 'DESC, auction.id '
+    }
+    const [result] = await getPool().query(script);
+    return result;
 };
 
 const addAuction = async (newTitle: string, newDesc: string, newEnd: string, newRes: number, sellerId: number, newCat: number):Promise<any> => {

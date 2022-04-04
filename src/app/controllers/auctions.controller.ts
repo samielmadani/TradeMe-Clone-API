@@ -11,68 +11,69 @@ const defaultPhotoDirectory = './storage/default/';
 
 const viewAuction = async (req: Request, res: Response):Promise<any> => {
     try {
-        const sortByValues = ["ALPHABETICAL_ASC", "ALPHABETICAL_DESC", "BIDS_ASC", "BIDS_DESC", "CLOSING_SOON", "CLOSING_LAST", "RESERVE_ASC", "RESERVE_DESC"];
+        const sorting = ["RESERVE_ASC", "RESERVE_DESC", "BIDS_ASC", "BIDS_DESC", "CLOSING_SOON", "CLOSING_LAST", "ALPHABETICAL_ASC", "ALPHABETICAL_DESC"];
         let start;
+        let end;
+        let q;
+        let categoryID;
+        let sellerID;
+        let bidderID;
+        let order;
+
         if (req.query.start) {
             start = parseInt(JSON.stringify(req.query.start).replace(/['"]+/g, ''), 10);
         } else {
             start = 0;
         }
 
-        let end;
         if (req.query.end) {
             end = parseInt(JSON.stringify(req.query.end).replace(/['"]+/g, ''), 10);
         } else {
             end = Infinity;
         }
 
-        let q;
         if (req.query.q) {
             q = JSON.stringify(req.query.q).replace(/['"]+/g, '');
         } else {
             q = "";
         }
 
-        let categoryId;
         if (req.query.categoryIds) {
-            categoryId = JSON.stringify(req.query.categoryIds).replace(/['"]+/g, '');
+            categoryID = JSON.stringify(req.query.categoryIds).replace(/['"]+/g, '');
         } else {
-            categoryId = "-1";
+            categoryID = "-1";
         }
 
-        let sellerId;
         if (req.query.sellerId) {
-            sellerId = JSON.stringify(req.query.sellerId).replace(/['"]+/g, '')
+            sellerID = JSON.stringify(req.query.sellerId).replace(/['"]+/g, '')
         } else {
-            sellerId = "-1";
+            sellerID = "-1";
         }
 
-        let bidderId;
         if (req.query.bidderId) {
-            bidderId = JSON.stringify(req.query.bidderId).replace(/['"]+/g, '')
+            bidderID = JSON.stringify(req.query.bidderId).replace(/['"]+/g, '')
         } else {
-            bidderId = "-1";
+            bidderID = "-1";
         }
 
-        let sortBy;
         if (req.query.sortBy) {
-            sortBy = JSON.stringify(req.query.sortBy).replace(/['"]+/g, '')
+            order = JSON.stringify(req.query.sortBy).replace(/['"]+/g, '')
         } else {
-            sortBy = "CLOSING_SOON";
+            order = "CLOSING_SOON";
         }
 
-        if (sortByValues.indexOf(sortBy) < 0) {
+        if (sorting.indexOf(order) < 0) {
             res.status (400).send("Bad Request");
             return;
         }
 
-        if (categoryId !== "-1" && !await auctions.oneCategory(categoryId)) {
+        if (categoryID !== "-1" && !await auctions.oneCategory(categoryID)) {
             res.status(400).send ("Bad Request");
             return;
         }
 
-        const result = await auctions.viewAuctions(q, categoryId, sellerId, bidderId, sortBy);
-        res.status(200).send({"auctions": result.slice(start, Math.min(result.length, start + end)), "count": result.length});
+        const viewed = await auctions.viewAuctions(q, categoryID, sellerID, bidderID, order);
+        res.status(200).send({"auctions": viewed.slice(start, Math.min(viewed.length, start + end)), "count": viewed.length});
         } catch (err) {
             res.status( 500 ).send ("Internal Server Error");
         }
