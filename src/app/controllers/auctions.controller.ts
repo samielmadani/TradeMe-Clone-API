@@ -10,8 +10,72 @@ const defaultPhotoDirectory = './storage/default/';
 
 
 const viewAuction = async (req: Request, res: Response):Promise<any> => {
-    // This function was not implemented due to no time but test all the other functions
-    return ;
+    try {
+        const sortByValues = ["ALPHABETICAL_ASC", "ALPHABETICAL_DESC", "BIDS_ASC", "BIDS_DESC", "CLOSING_SOON", "CLOSING_LAST", "RESERVE_ASC", "RESERVE_DESC"];
+        let start;
+        if (req.query.start) {
+            start = parseInt(JSON.stringify(req.query.start).replace(/['"]+/g, ''), 10);
+        } else {
+            start = 0;
+        }
+
+        let end;
+        if (req.query.end) {
+            end = parseInt(JSON.stringify(req.query.end).replace(/['"]+/g, ''), 10);
+        } else {
+            end = Infinity;
+        }
+
+        let q;
+        if (req.query.q) {
+            q = JSON.stringify(req.query.q).replace(/['"]+/g, '');
+        } else {
+            q = "";
+        }
+
+        let categoryId;
+        if (req.query.categoryIds) {
+            categoryId = JSON.stringify(req.query.categoryIds).replace(/['"]+/g, '');
+        } else {
+            categoryId = "-1";
+        }
+
+        let sellerId;
+        if (req.query.sellerId) {
+            sellerId = JSON.stringify(req.query.sellerId).replace(/['"]+/g, '')
+        } else {
+            sellerId = "-1";
+        }
+
+        let bidderId;
+        if (req.query.bidderId) {
+            bidderId = JSON.stringify(req.query.bidderId).replace(/['"]+/g, '')
+        } else {
+            bidderId = "-1";
+        }
+
+        let sortBy;
+        if (req.query.sortBy) {
+            sortBy = JSON.stringify(req.query.sortBy).replace(/['"]+/g, '')
+        } else {
+            sortBy = "CLOSING_SOON";
+        }
+
+        if (sortByValues.indexOf(sortBy) < 0) {
+            res.status (400).send("Bad Request");
+            return;
+        }
+
+        if (categoryId !== "-1" && !await auctions.oneCategory(categoryId)) {
+            res.status(400).send ("Bad Request");
+            return;
+        }
+
+        const result = await auctions.viewAuctions(q, categoryId, sellerId, bidderId, sortBy);
+        res.status(200).send({"auctions": result.slice(start, Math.min(result.length, start + end)), "count": result.length});
+        } catch (err) {
+            res.status( 500 ).send ("Internal Server Error");
+        }
 };
 
 const addAuction = async (req: Request, res: Response):Promise<any> => {
@@ -61,7 +125,7 @@ const addAuction = async (req: Request, res: Response):Promise<any> => {
             }
         }
         const addedAuc = await auctions.addAuction(newTitle, newDesc, newEnd, newRes, sellerId, newCat);
-        return res.status(201).send({"auctionID": addedAuc[0].insertId});
+        return res.status(201).send({"auctionId": addedAuc[0].insertId});
     } catch (err) {
         res.status(500).send(`ERROR trying to edit auction from server ` + err );
     }
@@ -129,7 +193,7 @@ const editAuctionInfo = async (req: Request, res: Response):Promise<any> => {
             res.status(404).send("User does not exist");
             return;
         }
-        if (userId !== ownerId) {
+        if (userId !== ownerId[0].seller_id) {
             res.status(403).send("Forbidden");
             return;
         }
@@ -140,7 +204,7 @@ const editAuctionInfo = async (req: Request, res: Response):Promise<any> => {
         }
         const numberOfBids = await auctions.getAuctionBids(auctionId)
         if (numberOfBids.length !== 0) {
-            res.status(403).send("Cannot delete auction with bids");
+            res.status(403).send("Cannot edit auction with bids");
             return;
         }
         if (newCat !== null) {
@@ -153,7 +217,7 @@ const editAuctionInfo = async (req: Request, res: Response):Promise<any> => {
         await auctions.editAuctionInfo(auctionId, newTitle, newDesc, newEnd, newRes, newCat);
         return res.status(200).send("Edit successful.");
     } catch (err) {
-    res.status(500).send(`ERROR trying to edit auction from server`);
+    res.status(500).send(`ERROR trying to edit auction from server` + (err));
 
     }
 
@@ -176,7 +240,7 @@ const deleteAuction = async (req: Request, res: Response):Promise<any> => {
         res.status(404).send("User does not exist");
         return;
     }
-    if (userId !== ownerId) {
+    if (userId !== ownerId[0].seller_id) {
         res.status(403).send("Forbidden");
         return;
     }
@@ -231,7 +295,9 @@ const getAuctionImage = async (req: Request, res: Response):Promise<any> => {
                 res.setHeader('content-type', 'image/gif');
             }
             const path = await fs.readFile(imageDirectory + auctionInfo[0].image_filename);
+            Logger.info(path);
             res.status(200).send(path);
+            return;
         }
     } catch (err) {
         res.status(500).send("ERROR with server." + `${err}`);
@@ -332,7 +398,7 @@ const placeBid = async (req: Request, res: Response):Promise<any> => {
             res.status(404).send("User does not exist");
             return;
         }
-        if (userId === ownerId) {
+        if (userId === ownerId[0].seller_id) {
             res.status(403).send("Cannot bid on your own auction");
             return;
         }

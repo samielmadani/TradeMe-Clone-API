@@ -4,12 +4,12 @@ import * as auctions from '../controllers/auctions.controller';
 import bodyParser from "body-parser";
 
 module.exports = (app: Express) => {
+    app.route(rootUrl + '/auctions/categories')
+        .get(auctions.categories);
+
     app.route(rootUrl + '/auctions')
         .get(auctions.viewAuction)
         .post(auctions.addAuction);
-
-    app.route(rootUrl + '/auctions/categories')
-        .get(auctions.categories);
 
     app.route(rootUrl + '/auctions/:id')
         .get(auctions.getAuctionInfo)
