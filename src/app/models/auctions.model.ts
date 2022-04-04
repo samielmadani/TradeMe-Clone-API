@@ -17,6 +17,7 @@ const auctionOwner = async (auctionID: string): Promise<any> => {
 }
 
 const viewAuction = async (): Promise<any> => {
+    // This function was not implemented due to no time but test all the other functions
     return ;
 };
 
@@ -113,8 +114,11 @@ const topBid = async (auctionID: string):Promise<any> => {
     return topBidder;
 };
 
-const placeBid = async ():Promise<any> => {
-    return ;
+const placeBid = async (auctionId: string, userId: string, amount: string, time: Date):Promise<any> => {
+    const connection = await getPool().getConnection();
+    const bidMade = await connection.query(`INSERT INTO auction_bid (auction_id, user_id, amount, timestamp) VALUES (?, ?, ?, ?)`, [auctionId, userId, amount, time]);
+    connection.release();
+    return bidMade;
 };
 
 export {auctionOwner, viewAuction, addAuction, oneCategory, topBid, getAuctionInfo, editAuctionInfo, deleteAuction, categories, getAuctionImage, editAuctionImage, getAuctionBids, placeBid}

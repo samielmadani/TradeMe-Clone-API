@@ -8,13 +8,13 @@ module.exports = (app: Express) => {
         .get(auctions.viewAuction)
         .post(auctions.addAuction);
 
+    app.route(rootUrl + '/auctions/categories')
+        .get(auctions.categories);
+
     app.route(rootUrl + '/auctions/:id')
         .get(auctions.getAuctionInfo)
         .patch(auctions.editAuctionInfo)
         .delete(auctions.deleteAuction);
-
-    app.route(rootUrl + '/auctions/categories')
-        .get(auctions.categories);
 
     app.route(rootUrl + '/auctions/:id/image')
         .get(auctions.getAuctionImage)

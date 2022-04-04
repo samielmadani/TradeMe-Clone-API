@@ -10,6 +10,7 @@ const defaultPhotoDirectory = './storage/default/';
 
 
 const viewAuction = async (req: Request, res: Response):Promise<any> => {
+    // This function was not implemented due to no time but test all the other functions
     return ;
 };
 
@@ -43,7 +44,7 @@ const addAuction = async (req: Request, res: Response):Promise<any> => {
         const end = new Date(newEnd);
         const cur = new Date();
         if (end < cur) {
-            res.status(404).send("End date must be in");
+            res.status(404).send("End date must be in future");
             return;
         }
         if (newRes === null) {
@@ -200,9 +201,9 @@ const deleteAuction = async (req: Request, res: Response):Promise<any> => {
 const categories = async (req: Request, res: Response):Promise<any> => {
     try {
         const categoryInfo = await auctions.categories();
-        Logger.info(categoryInfo);
         if(categoryInfo.length === 0) {
             res.status(200).send([]);
+            return;
         } else {
             return res.status(200).send(categoryInfo);
         }
@@ -315,17 +316,50 @@ const getAuctionBids = async (req: Request, res: Response):Promise<any> => {
 
 const placeBid = async (req: Request, res: Response):Promise<any> => {
     try {
+        const aucId = req.params.id;
         const currentToken = req.get('X-Authorization');
         if (currentToken === undefined) {
             res.status(401).send("Unauthorized");
             return;
         }
-        const auctionId = req.params.id;
-        const currentUserId = await users.findId(currentToken);
-        const userInfoExists = await users.getUserInfo(currentUserId);
-        // * Not finished. */
+        const userId = await users.findId(currentToken);
+        const ownerId = await auctions.auctionOwner(aucId);
+        if (ownerId === null) {
+            res.status(404).send("Auction not found");
+            return;
+        }
+        if (userId === null) {
+            res.status(404).send("User does not exist");
+            return;
+        }
+        if (userId === ownerId) {
+            res.status(403).send("Cannot bid on your own auction");
+            return;
+        }
+        const auctionInfo = await auctions.getAuctionInfo(aucId);
+        if (auctionInfo.length === 0) {
+            res.status(404).send("Auction does not exist");
+            return;
+        }
+
+        const end = new Date(auctionInfo.endDate);
+        const cur = new Date();
+        if (end < cur) {
+            res.status(404).send("Auction has ended");
+            return;
+        }
+        const numberOfBids = await auctions.getAuctionBids(aucId)
+        if (numberOfBids.length !== 0) {
+            const top = numberOfBids[0];
+            if (parseInt(req.body.amount, 10) >= parseInt(top, 10)) {
+                return res.status(404).send("Bid amount must be greater than top bidder");
+            }
+        }
+
+        const makeBid = await auctions.placeBid(aucId, userId, req.body.amount, cur);
+        return res.status(201).send(makeBid);
     } catch (err) {
-        res.status(500).send(`ERROR with image from server` + `${err}`);
+        res.status(500).send(`ERROR with image from server ` + err);
     }
 };
 
