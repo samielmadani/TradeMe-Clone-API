@@ -41,19 +41,19 @@ const viewAuction = async (req: Request, res: Response):Promise<any> => {
         if (req.query.categoryIds) {
             categoryID = JSON.stringify(req.query.categoryIds).replace(/['"]+/g, '');
         } else {
-            categoryID = "-1";
+            categoryID = "false";
         }
 
         if (req.query.sellerId) {
             sellerID = JSON.stringify(req.query.sellerId).replace(/['"]+/g, '')
         } else {
-            sellerID = "-1";
+            sellerID = "false";
         }
 
         if (req.query.bidderId) {
             bidderID = JSON.stringify(req.query.bidderId).replace(/['"]+/g, '')
         } else {
-            bidderID = "-1";
+            bidderID = "false";
         }
 
         if (req.query.sortBy) {
@@ -67,15 +67,15 @@ const viewAuction = async (req: Request, res: Response):Promise<any> => {
             return;
         }
 
-        if (categoryID !== "-1" && !await auctions.oneCategory(categoryID)) {
-            res.status(400).send ("Bad Request");
+        if (categoryID !== "false" && !await auctions.oneCategory(categoryID)) {
+            res.status(400).send ("Category ID invalid");
             return;
         }
 
         const viewed = await auctions.viewAuctions(q, categoryID, sellerID, bidderID, order);
         res.status(200).send({"auctions": viewed.slice(start, Math.min(viewed.length, start + end)), "count": viewed.length});
         } catch (err) {
-            res.status( 500 ).send ("Internal Server Error");
+            res.status( 500 ).send ("ERROR from server viewing");
         }
 };
 

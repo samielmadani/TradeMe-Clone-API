@@ -28,34 +28,34 @@ const viewAuctions = async (q: string, categoryID: string, sellerID: string, bid
     if (q !== "") {
         script += 'AND title LIKE "%' + q + '%" OR description LIKE "%' + q + '%" ';
     }
-    if (categoryID !== "-1") {
+    if (categoryID !== "false") {
         script += 'AND category_id=' + categoryID + ' ';
     }
-    if (sellerID !== "-1") {
+    if (sellerID !== "false") {
         script += 'AND seller_id=' + sellerID + ' ';
     }
-    if (bidderID !== "-1") {
+    if (bidderID !== "false") {
         script += 'AND auction_bid.user_id=' + bidderID + ' ';
     }
     script += 'GROUP BY auction.id ';
     const sorting = sortBy.split("_");
     if (sorting[0] === "ALPHABETICAL") {
         script += 'ORDER BY title '
-    } else if (sorting[0] === "BIDS") {
-        script += 'ORDER BY amount '
     } else if (sorting[0] === "CLOSING") {
         script += 'ORDER BY auction.end_date '
     } else if (sorting[0] === "RESERVE") {
         script += 'ORDER BY reserve '
+    } else if (sorting[0] === "BIDS") {
+        script += 'ORDER BY amount '
     }
     if (sorting[1] === "ASC") {
-        script += 'ASC, auction.id '
-    } else if (sorting[0] === "SOON") {
         script += 'ASC, auction.id '
     } else if (sorting[0] === "DESC") {
         script += 'DESC, auction.id '
     } else if (sorting[0] === "LAST") {
         script += 'DESC, auction.id '
+    } else if (sorting[0] === "SOON") {
+        script += 'ASC, auction.id '
     }
     const [result] = await getPool().query(script);
     return result;
