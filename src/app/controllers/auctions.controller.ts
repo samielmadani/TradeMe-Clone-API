@@ -225,37 +225,38 @@ const editAuctionInfo = async (req: Request, res: Response):Promise<any> => {
 };
 
 const deleteAuction = async (req: Request, res: Response):Promise<any> => {
-    const auctionId = req.params.id;
-    const currentToken = req.get('X-Authorization');
-    if (currentToken === undefined) {
-        res.status(401).send("Unauthorized");
-        return;
-    }
-    const userId = await users.findId(currentToken);
-    const ownerId = await auctions.auctionOwner(auctionId);
-    if (ownerId === null) {
-        res.status(404).send("Auction not found");
-        return;
-    }
-    if (userId === null) {
-        res.status(404).send("User does not exist");
-        return;
-    }
-    if (userId !== ownerId[0].seller_id) {
-        res.status(403).send("Forbidden");
-        return;
-    }
-    const numberOfBids = await auctions.getAuctionBids(auctionId)
-    if (numberOfBids.length !== 0) {
-        res.status(403).send("Cannot delete auction with bids");
-        return;
-    }
-    const auctionInfo = await auctions.getAuctionInfo(auctionId);
-    if (auctionInfo.length === 0) {
-        res.status(404).send("Auction does not exist");
-        return;
-    }
     try {
+        const auctionId = req.params.id;
+        const currentToken = req.get('X-Authorization');
+        if (currentToken === undefined) {
+            res.status(401).send("Unauthorized");
+            return;
+        }
+        const userId = await users.findId(currentToken);
+        const ownerId = await auctions.auctionOwner(auctionId);
+        if (ownerId === null) {
+            res.status(404).send("Auction not found");
+            return;
+        }
+        if (userId === null) {
+            res.status(404).send("User does not exist");
+            return;
+        }
+        if (userId !== ownerId[0].seller_id) {
+            res.status(403).send("Forbidden");
+            return;
+        }
+        const numberOfBids = await auctions.getAuctionBids(auctionId)
+        if (numberOfBids.length !== 0) {
+            res.status(403).send("Cannot delete auction with bids");
+            return;
+        }
+        const auctionInfo = await auctions.getAuctionInfo(auctionId);
+        if (auctionInfo.length === 0) {
+            res.status(404).send("Auction does not exist");
+            return;
+        }
+
         await auctions.deleteAuction(auctionId);
         res.status(200).send("Auction deleted");
     } catch (err) {
